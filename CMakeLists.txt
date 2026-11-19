@@ -47,13 +47,16 @@ string(REPLACE "STM32F405XX_FLASH.ld" "GalaxyBoot_boot.ld" CMAKE_EXE_LINKER_FLAG
 
 file(GLOB_RECURSE APP_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/App/*.c)
 set(COMMON_SOURCES
-    ${COMMON_DIR}/util/crc32.c)
+    ${COMMON_DIR}/util/crc32.c
+    ${COMMON_DIR}/galaxy/oled.c
+    ${COMMON_DIR}/galaxy/eeprom.c)
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE ${APP_SOURCES} ${COMMON_SOURCES})
 set_source_files_properties(${APP_SOURCES} ${COMMON_SOURCES} PROPERTIES COMPILE_OPTIONS "-Wextra")
 
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/App/Boot
     ${COMMON_DIR}/util
+    ${COMMON_DIR}/galaxy
 )
 
 # Remove wrong libob.a library dependency when using cpp files
