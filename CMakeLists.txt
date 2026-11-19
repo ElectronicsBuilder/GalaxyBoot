@@ -38,9 +38,17 @@ add_executable(${CMAKE_PROJECT_NAME})
 add_subdirectory(cmake/stm32cubemx)
 
 # ---------------------------------------------------------------------------
-# GalaxyBoot code (App/) and shared code (../common). CubeMX owns the rest.
+# GalaxyBoot code (App/) and shared code (common/). CubeMX owns the rest.
 # ---------------------------------------------------------------------------
-set(COMMON_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../common)
+# Shared code and tools: inside this project (stand-alone repository) or next
+# to it (the combined Galaxy workspace).
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/common)
+    set(COMMON_DIR ${CMAKE_CURRENT_SOURCE_DIR}/common)
+    set(TOOLS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tools)
+else()
+    set(COMMON_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../common)
+    set(TOOLS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../tools)
+endif()
 
 # Bootloader: 256 KB at 0x08000000 (sectors 0-5).
 string(REPLACE "STM32F405XX_FLASH.ld" "GalaxyBoot_boot.ld" CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")

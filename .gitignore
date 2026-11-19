@@ -1,0 +1,26 @@
+# Build output
+build/
+*.o
+*.d
+*.su
+*.map
+*.elf
+*.bin
+*.hex
+
+# CubeMX temporary files
+MXTmpFiles/
+*.bak
+
+# Editor / OS
+.vs/
+*.swp
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Host tests
+tests/host/build/

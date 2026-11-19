@@ -1,0 +1,31 @@
+# Builds GalaxyBoot (no warnings allowed in our own code) and runs the host
+# unit tests. Same checks as `sh tools/ci_build.sh` on a PC.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      # same compiler as STM32CubeCLT 1.16
+      - uses: carlosperate/arm-none-eabi-gcc-action@v1
+        with:
+          release: '12.3.Rel1'
+
+      - name: Ninja
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+
+      - name: Build and test
+        run: sh tools/ci_build.sh
+
+      - name: Keep the firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: GalaxyBoot
+          path: |
+            build/Debug/GalaxyBoot.elf
