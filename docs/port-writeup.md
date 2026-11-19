@@ -77,6 +77,27 @@ PC13, which is not connected, with a pull-down: it always reads "present".
   timeout is 2 s instead of 30 s, and an SDIO error ends a waiting read at
   once.
 
+### Watchdog
+
+`common/stm32f4/watchdog.c` drives the independent watchdog (IWDG). It runs
+from the internal 32 kHz LSI clock, so no stuck clock or peripheral can stop
+it.
+
+- **How supervision works:** the watchdog is refreshed only while every
+  supervised task has reported within 3 s:
+  - BeaconGalaxy: the App task, the GUI (every frame) and fx;
+  - AudioGalaxy: the App task and the player.
+- **Timeout:** 4 s once running, and 8 s during start-up, which includes the
+  SD mount and the GIF scan. So a single stuck task resets the board within
+  about 7 s.
+- **Reset report:** before the reset, the stuck task's name is noted in the
+  last bytes of the CCM RAM, which survive the reset. The next boot logs it,
+  and `ver` / `wdg` report it, for example
+  `last_reset=watchdog (task fx stuck)`.
+- **Debugging:** the watchdog pauses while a debugger halts the core.
+- **Testing:** `wdg stall <task>` stops counting one task's reports, and
+  `wdg hang` stops the App task.
+
 ### Settings
 
 `App/Settings` holds colour, intensity, volume, the editor step, GIF frame
@@ -96,6 +117,10 @@ straight away. The update steps and their safety are described in
 - Without a valid application it shows NO APP, and ENTER tries the SD card.
 - Progress is shown on the OLED and on USART1. The last attempt is kept in
   RAM (`boot_diag`) for reading over SWD.
+- The watchdog (8 s) runs during an update and in the NO APP wait, and is
+  refreshed at every step. A hang resets the board, and the boot fuse, which
+  is still set, makes it try again. A normal start jumps to the application
+  with the watchdog off; the application starts its own.
 
 ## AudioGalaxy
 
@@ -114,21 +139,28 @@ straight away. The update steps and their safety are described in
 ## Building, testing, flashing
 
 ```
-cmake --preset Debug
-cmake --build --preset Debug
+cmake --preset Release        # or Debug
+cmake --build --preset Release
 ```
+
+- **Which preset:** `Release` (`-Os`, no debug information) is the build to
+  run on the boards. `Debug` (`-O0 -g3`) is for stepping through code in a
+  debugger.
+- **Both are tested:** both build with no warnings, and the Release builds
+  were tested on the hardware: start-up through GalaxyBoot, the link,
+  GIFs/themes/equalizer, audio, the SD update and the watchdog.
 
 - **Toolchain:** STM32CubeCLT 1.16 (arm-none-eabi-gcc 12.3, CMake, Ninja),
   on the PATH.
 - **Host tests:** `sh tests/host/run_tests.sh` with any PC gcc. They cover the
   protocol, CRC, ring buffer, command-line parsing, WAV, playlist, GIF names,
   BMP, matrix layout, FFT and the update-image checks.
-- **CI checks:** `sh tools/ci_build.sh` does a clean build (no warnings allowed
-  in our own code) and runs the host tests. GitHub Actions runs the same
-  script.
+- **CI checks:** `sh tools/ci_build.sh` does a clean build of Debug and Release
+  (no warnings allowed in our own code) and runs the host tests. GitHub
+  Actions runs the same script and keeps the Release images.
 - **Flashing:** with STM32_Programmer_CLI, choosing the probe by serial number
   (VS Code tasks are included):
-  `STM32_Programmer_CLI -c port=SWD sn=<serial> mode=UR -w build/Debug/<name>.elf -v -rst`.
+  `STM32_Programmer_CLI -c port=SWD sn=<serial> mode=UR -w build/Release/<name>.elf -v -rst`.
 - **Regenerating CubeMX code:** `sh tools/cubemx_generate.sh <project-dir>`.
   Changes to the `.ioc` are kept as text in `cubemx/<name>.patch`.
 

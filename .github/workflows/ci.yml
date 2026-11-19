@@ -1,4 +1,4 @@
-# Builds GalaxyBoot (no warnings allowed in our own code) and runs the host
+# Builds GalaxyBoot in Debug and Release (no warnings allowed in our own code) and runs the host
 # unit tests. Same checks as `sh tools/ci_build.sh` on a PC.
 name: CI
 
@@ -28,4 +28,5 @@ jobs:
         with:
           name: GalaxyBoot
           path: |
+            build/Release/GalaxyBoot.elf
             build/Debug/GalaxyBoot.elf

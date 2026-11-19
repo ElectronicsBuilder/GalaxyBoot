@@ -57,7 +57,8 @@ file(GLOB_RECURSE APP_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/App/
 set(COMMON_SOURCES
     ${COMMON_DIR}/util/crc32.c
     ${COMMON_DIR}/galaxy/oled.c
-    ${COMMON_DIR}/galaxy/eeprom.c)
+    ${COMMON_DIR}/galaxy/eeprom.c
+    ${COMMON_DIR}/stm32f4/watchdog.c)
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE ${APP_SOURCES} ${COMMON_SOURCES})
 set_source_files_properties(${APP_SOURCES} ${COMMON_SOURCES} PROPERTIES COMPILE_OPTIONS "-Wextra")
 
@@ -65,6 +66,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/App/Boot
     ${COMMON_DIR}/util
     ${COMMON_DIR}/galaxy
+    ${COMMON_DIR}/stm32f4
 )
 
 # Remove wrong libob.a library dependency when using cpp files

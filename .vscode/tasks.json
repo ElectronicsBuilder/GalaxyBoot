@@ -43,6 +43,35 @@
             "problemMatcher": []
         },
         {
+            "label": "GalaxyBoot: build Release",
+            "type": "shell",
+            "detail": "-Os, no debug info: the build to run on the board",
+            "command": "cmake --preset Release; cmake --build --preset Release",
+            "group": "build",
+            "problemMatcher": {
+                "base": "$gcc",
+                "fileLocation": "absolute"
+            }
+        },
+        {
+            "label": "GalaxyBoot: flash bootloader (Release)",
+            "detail": "Galaxy F405 board over SWD; sectors 0-5; the application at 0x08040000 is kept",
+            "type": "shell",
+            "command": "C:/ST/STM32CubeCLT_1.16.0/STM32CubeProgrammer/bin/STM32_Programmer_CLI.exe",
+            "args": [
+                "-c",
+                "port=SWD",
+                "sn=${input:stlink}",
+                "mode=UR",
+                "-w",
+                "build/Release/GalaxyBoot.elf",
+                "-v",
+                "-rst"
+            ],
+            "dependsOn": "GalaxyBoot: build Release",
+            "problemMatcher": []
+        },
+        {
             "label": "GalaxyBoot: reset",
             "type": "shell",
             "command": "C:/ST/STM32CubeCLT_1.16.0/STM32CubeProgrammer/bin/STM32_Programmer_CLI.exe",

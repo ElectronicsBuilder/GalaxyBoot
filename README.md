@@ -31,6 +31,9 @@ player board).
 - **Progress and diagnostics:** progress is shown on the OLED and on USART1
   (115200). The last attempt is kept in RAM (`boot_diag`) for reading over
   SWD.
+- **Watchdog (8 s):** runs during an update and in the NO APP wait. A hang
+  resets the board, and the boot fuse, which is still set, makes it try
+  again.
 
 Details: [docs/memory-map.md](docs/memory-map.md).
 
@@ -39,8 +42,8 @@ Details: [docs/memory-map.md](docs/memory-map.md).
 You need STM32CubeCLT 1.16 (arm-none-eabi-gcc, CMake, Ninja) on the PATH.
 
 ```
-cmake --preset Debug
-cmake --build --preset Debug
+cmake --preset Release        # Debug for the debugger
+cmake --build --preset Release
 ```
 
 ## Flash
@@ -49,7 +52,7 @@ GalaxyBoot occupies sectors 0–5 (0x08000000–0x0803FFFF). Flashing it leaves
 the application alone:
 
 ```
-STM32_Programmer_CLI -c port=SWD sn=<st-link serial> mode=UR -w build/Debug/GalaxyBoot.elf -v -rst
+STM32_Programmer_CLI -c port=SWD sn=<st-link serial> mode=UR -w build/Release/GalaxyBoot.elf -v -rst
 ```
 
 VS Code tasks (`.vscode/tasks.json`) cover building, flashing, the host tests

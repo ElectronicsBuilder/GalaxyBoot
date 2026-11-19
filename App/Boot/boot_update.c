@@ -5,6 +5,7 @@
 #include "boot_jump.h"
 #include "boot_ui.h"
 #include "image.h"
+#include "watchdog.h"
 #include "crc32.h"
 #include "fatfs.h"
 #include "main.h"
@@ -23,6 +24,7 @@ volatile BootDiag boot_diag;
 
 static void P_Progress(const char *what, uint32_t done, uint32_t total)
 {
+  Wdg_Kick();                       /* every chunk / sector: the update is moving */
   unsigned p = total ? (unsigned)((uint64_t)done * 100u / total) : 100u;
   if (p == last_percent) return;
   last_percent = p;
@@ -35,6 +37,7 @@ static void P_Progress(const char *what, uint32_t done, uint32_t total)
 
 static void P_Status(const char *text)
 {
+  Wdg_Kick();
   last_percent = 101u;
   BootUi_Line(2, text);
   BootUi_Line(3, "");

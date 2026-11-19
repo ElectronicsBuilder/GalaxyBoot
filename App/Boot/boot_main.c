@@ -10,6 +10,10 @@
  * the application untouched (no card, no file, bad file), so a bad card never
  * causes a reset loop. After a failed flash write it stays set: the next reset
  * tries again.
+ *
+ * The watchdog (8 s) runs during an update and while waiting with NO APP: a
+ * hang there resets the board, and the fuse (still set) makes it try again.
+ * GalaxyBoot leaves the reset flags alone: the application reports them.
  */
 #include "boot_main.h"
 #include "boot_jump.h"
@@ -18,10 +22,12 @@
 #include "boot_fuse.h"
 #include "eeprom.h"
 #include "oled.h"
+#include "watchdog.h"
 #include "main.h"
 #include <string.h>
 
-#define BOOT_VERSION "1.0"
+#define BOOT_VERSION "1.1"
+#define BOOT_WDG_MS  8000u
 
 static const uint8_t fuse_set[BOOT_FUSE_LEN] = BOOT_FUSE_SET;
 
@@ -56,8 +62,19 @@ static void P_Header(void)
   BootUi_Show();
 }
 
+/* HAL_Delay that keeps the watchdog fed */
+static void P_Wait(uint32_t ms)
+{
+  for (uint32_t t = 0; t < ms; t += 100u)
+  {
+    Wdg_Kick();
+    HAL_Delay(ms - t < 100u ? ms - t : 100u);
+  }
+}
+
 static UpdateResult P_Update(int fuse)
 {
+  Wdg_Start(BOOT_WDG_MS);
   P_Header();
   UpdateResult r = Update_Run();
   Boot_Log("boot: update: %s", Update_ResultText(r));
@@ -66,7 +83,7 @@ static UpdateResult P_Update(int fuse)
   BootUi_Line(4, "");
   BootUi_Show();
   if (fuse && r != UPD_FLASH_FAILED) P_FuseClear();
-  HAL_Delay(r == UPD_OK ? 1000u : 3000u);     /* time to read the result */
+  P_Wait(r == UPD_OK ? 1000u : 3000u);        /* time to read the result */
   return r;
 }
 
@@ -96,6 +113,7 @@ void Boot_Main(void)
   /* no application: wait for an SD card with an update */
   Boot_Log("boot: no valid application; press ENTER to update from the SD card");
   if (!ui) BootUi_Init();
+  Wdg_Start(BOOT_WDG_MS);
   for (;;)
   {
     P_Header();
@@ -106,7 +124,7 @@ void Boot_Main(void)
     while (!P_EnterHeld())
     {
       HAL_GPIO_TogglePin(LED_RED_GPIO_Port, LED_RED_Pin);
-      HAL_Delay(230);
+      P_Wait(230);
     }
     HAL_GPIO_WritePin(LED_RED_GPIO_Port, LED_RED_Pin, GPIO_PIN_RESET);
     if (P_Update(0) == UPD_OK) NVIC_SystemReset();
