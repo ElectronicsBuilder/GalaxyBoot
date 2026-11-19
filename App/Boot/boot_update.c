@@ -19,6 +19,7 @@
 static uint8_t chunk[CHUNK] __attribute__((aligned(4)));
 static FIL file;
 static unsigned last_percent = 101u;
+volatile BootDiag boot_diag;
 
 static void P_Progress(const char *what, uint32_t done, uint32_t total)
 {
@@ -128,8 +129,11 @@ static int P_Flash(const ImageInfo *info)
   HAL_FLASH_Unlock();
   __HAL_FLASH_CLEAR_FLAG(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR | FLASH_FLAG_PGAERR |
                          FLASH_FLAG_PGPERR | FLASH_FLAG_PGSERR);
+  boot_diag.stage = 4;
   int rc = P_Erase(info->length);
+  boot_diag.stage = 5;
   if (rc == 0) rc = P_Program(VECTOR_BYTES, info->length);
+  boot_diag.stage = 6;
   if (rc == 0)
   {
     /* everything but the vectors is in: check it, with the vectors taken from the file */
@@ -159,21 +163,32 @@ UpdateResult Update_Run(void)
 {
   ImageInfo info;
   char path[32];
+  FRESULT fr;
+  boot_diag.magic = 0x47414944u;
+  boot_diag.stage = 1;
   P_Status("SD CARD");
-  if (f_mount(&SDFatFS, SDPath, 1) != FR_OK)
+  if ((fr = f_mount(&SDFatFS, SDPath, 1)) != FR_OK)
   {
-    Boot_Log("boot: no SD card");
+    boot_diag.fresult = fr;
+    boot_diag.result = UPD_NO_CARD;
+    Boot_Log("boot: no SD card (FatFs %d)", (int)fr);
     return UPD_NO_CARD;
   }
   snprintf(path, sizeof path, "%s%s", SDPath, BOOT_UPDATE_FILE);
-  if (f_open(&file, path, FA_READ) != FR_OK)
+  boot_diag.stage = 2;
+  if ((fr = f_open(&file, path, FA_READ)) != FR_OK)
   {
+    boot_diag.fresult = fr;
+    boot_diag.result = UPD_NO_FILE;
     Boot_Log("boot: %s not found", path);
     f_mount(NULL, SDPath, 0);
     return UPD_NO_FILE;
   }
+  boot_diag.stage = 3;
   UpdateResult r = P_CheckFile(&info);
   if (r == UPD_OK && P_Flash(&info) != 0) r = UPD_FLASH_FAILED;
+  if (r == UPD_OK) boot_diag.stage = 7;
+  boot_diag.result = r;
   f_close(&file);
   f_mount(NULL, SDPath, 0);
   return r;

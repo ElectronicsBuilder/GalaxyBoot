@@ -12,6 +12,8 @@
 #ifndef BOOT_UPDATE_H
 #define BOOT_UPDATE_H
 
+#include <stdint.h>
+
 #define BOOT_UPDATE_FILE "BeaconGalaxy.bin"
 
 typedef enum {
@@ -23,6 +25,15 @@ typedef enum {
 } UpdateResult;
 
 UpdateResult Update_Run(void);
+
+/* Last update attempt, readable over SWD (symbol boot_diag) when the console is not connected */
+typedef struct {
+  uint32_t magic;        /* 0x47414944 "DIAG" once written */
+  uint32_t result;       /* UpdateResult */
+  uint32_t stage;        /* 1 mount, 2 open, 3 check, 4 erase, 5 write, 6 verify, 7 done */
+  uint32_t fresult;      /* last FatFs error */
+} BootDiag;
+extern volatile BootDiag boot_diag;
 const char *Update_ResultText(UpdateResult r);
 
 #endif

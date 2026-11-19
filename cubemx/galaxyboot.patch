@@ -53,6 +53,7 @@ I2C2.IPParameters=ClockSpeed
 
 # --- microSD: SDIO 4-bit, polling ---
 ip SDIO
+# polled transfers (no DMA in the bootloader): 48 MHz / (4 + 2) = 8 MHz keeps the FIFO from overrunning
 PC8.Mode=SD_4_bits_Wide_bus
 PC8.Signal=SDIO_D0
 PC9.Mode=SD_4_bits_Wide_bus
@@ -65,8 +66,9 @@ PC12.Mode=SD_4_bits_Wide_bus
 PC12.Signal=SDIO_CK
 PD2.Mode=SD_4_bits_Wide_bus
 PD2.Signal=SDIO_CMD
-SDIO.IPParameters=WideMode
+SDIO.IPParameters=WideMode,ClockDiv
 SDIO.WideMode=SDIO_BUS_WIDE_4B
+SDIO.ClockDiv=4
 
 # --- FatFs on the SD card, long file names (static buffer) ---
 ip FATFS
