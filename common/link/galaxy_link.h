@@ -28,6 +28,9 @@
  *   GALAXYAUDIO STOPPED          playing stopped
  *   GALAXYAUDIO NOUSB            no USB stick / no tracks
  *   GALAXYAUDIO ERR <reason>     a command could not be done
+ *   GALAXYAUDIO LEVELS <pos> <len> <hex>   while playing, about 20 times a
+ *                                second: elapsed and total seconds, then the levels
+ *                                as hex (common/dsp/spectrum.h)
  *
  * This module has no hardware access (tested on the PC).
  */
@@ -41,6 +44,7 @@
 #define GX_NAME_MAX      64    /* longest track name kept */
 #define GX_PLAYLIST_MAX  100   /* tracks listed */
 #define GX_VOLUME_MAX    100
+#define GX_SECONDS_MAX   359999   /* 99:59:59 */
 
 typedef enum {
   GX_NONE = 0,
@@ -69,6 +73,7 @@ typedef enum {
   GX_EV_STOPPED,
   GX_EV_NOUSB,
   GX_EV_ERR,        /* text = reason */
+  GX_EV_LEVELS,     /* a = elapsed s, b = length s, text = levels (hex) */
   GX_COUNT
 } GxId;
 

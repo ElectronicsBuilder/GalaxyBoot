@@ -21,15 +21,15 @@ A=$(app_of AudioGalaxy)
 B=$(app_of BeaconGalaxy)
 G=$(app_of GalaxyBoot)
 
-FLAGS="-I$C/cli -I$C/util -I$C/link"
-SRCS="$C/cli/cli_parse.c $C/util/crc16.c $C/util/crc32.c $C/link/galaxy_link.c"
+FLAGS="-I$C/cli -I$C/util -I$C/link -I$C/dsp"
+SRCS="$C/cli/cli_parse.c $C/util/crc16.c $C/util/crc32.c $C/link/galaxy_link.c $C/dsp/fft.c $C/dsp/spectrum.c"
 if [ -n "$A" ]; then
   FLAGS="$FLAGS -DTEST_AUDIO -DPLAYLIST_HOST_TEST -I$A/Player"
   SRCS="$SRCS $A/Player/wav.c $A/Player/playlist.c"
 fi
 if [ -n "$B" ]; then
-  FLAGS="$FLAGS -DTEST_BEACON -I$B/Gif -I$B/Matrix -I$B/Eq"
-  SRCS="$SRCS $B/Gif/gif_names.c $B/Gif/bmp.c $B/Matrix/matrix_px.c $B/Eq/fft.c"
+  FLAGS="$FLAGS -DTEST_BEACON -I$B/Gif -I$B/Matrix"
+  SRCS="$SRCS $B/Gif/gif_names.c $B/Gif/bmp.c $B/Matrix/matrix_px.c"
 fi
 if [ -n "$G" ]; then
   FLAGS="$FLAGS -DTEST_BOOT -DBOOT_HOST_TEST -I$G/Boot"

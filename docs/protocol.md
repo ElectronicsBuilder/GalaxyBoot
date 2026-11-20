@@ -43,6 +43,7 @@ tests cover it.
 | `GALAXYAUDIO REPEATSET` | `GALAXYREPEATON/OFF` was applied. |
 | `GALAXYAUDIO NOUSB` | There is no USB stick, or no tracks on it. |
 | `GALAXYAUDIO ERR "<reason>"` | A command could not be done. |
+| `GALAXYAUDIO LEVELS <pos> <len> <hex>` | While a track plays, each time a half of the audio buffer starts (about 20 times a second at 44.1 kHz): elapsed and total seconds, then 36 hex digits, which are 16 frequency bands (low to high) and the left and right level, one byte each. A level is 0..255 over 60 dB below full scale. See `common/dsp/spectrum.h`. |
 
 ## Handshake
 

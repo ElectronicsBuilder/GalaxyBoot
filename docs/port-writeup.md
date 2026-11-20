@@ -44,6 +44,14 @@ FreeRTOS (CMSIS-RTOS2) runs these tasks:
     it posts typed commands and reads status through getters.
   - Screen logic is in `TouchGFX/gui/`; shared navigation state is in
     `gui/common/Ui.hpp`.
+  - Widgets drawn in code (`gui/common/`): `AudioMeter` (spectrum / VU from
+    `GALAXYAUDIO LEVELS`, automatic range), `TrackProgress`, `MenuBar` (menu
+    position), `PixelText` (the 5x7 font of `common/galaxy/font5x7.c`, shared
+    with GalaxyBoot, for small readouts; Verdana at 7 px blurs its zero into
+    a D). `ui::TextScroll` scrolls text that is longer than its place.
+  - `tools/oled_shot.py` reads the framebuffer over SWD and saves a PNG of
+    the screen, optionally after pressing keys: the screens can be checked
+    without looking at the board.
 - **fx** (`App/Fx/`): owns the LED matrix and runs one effect at a time: a
   GIF, a theme, the equalizer, a plain colour or a test pattern.
   - `App/Matrix/ws2812.c`: TIM3 CH3 PWM, refilled by DMA1 stream 2 from a

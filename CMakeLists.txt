@@ -57,6 +57,7 @@ file(GLOB_RECURSE APP_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/App/
 set(COMMON_SOURCES
     ${COMMON_DIR}/util/crc32.c
     ${COMMON_DIR}/galaxy/oled.c
+    ${COMMON_DIR}/galaxy/font5x7.c
     ${COMMON_DIR}/galaxy/eeprom.c
     ${COMMON_DIR}/stm32f4/watchdog.c)
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE ${APP_SOURCES} ${COMMON_SOURCES})

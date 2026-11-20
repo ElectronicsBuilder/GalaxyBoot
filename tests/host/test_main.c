@@ -13,6 +13,9 @@
 #include "crc32.h"
 #include "galaxy_link.h"
 #include "ring.h"
+#include "fft.h"
+#include "spectrum.h"
+#include <math.h>
 #ifdef TEST_AUDIO
 #include "wav.h"
 #include "playlist.h"
@@ -21,8 +24,6 @@
 #include "gif_names.h"
 #include "bmp.h"
 #include "matrix.h"
-#include "fft.h"
-#include <math.h>
 #endif
 #ifdef TEST_BOOT
 #include "image.h"
@@ -120,6 +121,104 @@ static void test_link_format(void)
         strcmp(buf, "GALAXYAUDIO ERR \"no such track\"\r\n") == 0);
   CHECK(Gx_FormatId(GX_PLAY, 7, 0, NULL, buf, 8) == 0);   /* does not fit */
   CHECK(strcmp(Gx_Name(GX_EV_WAVEEND), "WAVEEND") == 0);
+
+  /* levels while playing */
+  CHECK(Gx_FormatId(GX_EV_LEVELS, 83, 214, "00FF", buf, sizeof buf) > 0 &&
+        strcmp(buf, "GALAXYAUDIO LEVELS 83 214 00FF\r\n") == 0);
+  buf[strlen(buf) - 2] = '\0';
+  CHECK(Gx_Parse(buf, &m) == GX_PARSE_OK && m.id == GX_EV_LEVELS && m.a == 83 && m.b == 214 &&
+        strcmp(m.text, "00FF") == 0);
+  char bad[] = "GALAXYAUDIO LEVELS 83";
+  CHECK(Gx_Parse(bad, &m) == GX_PARSE_BAD_ARGS);
+  char neg[] = "GALAXYAUDIO LEVELS -1 2 00";
+  CHECK(Gx_Parse(neg, &m) == GX_PARSE_BAD_ARGS);
+}
+
+/* ---------- FFT and spectrum (common/dsp) ---------- */
+static void test_fft(void)
+{
+  static float re[256], im[256], mag[128];
+  for (int i = 0; i < 256; i++) { re[i] = cosf(6.2831853f * 10.0f * (float)i / 256.0f); im[i] = 0; }
+  CHECK(Fft_Run(re, im, 256) == 0);
+  Fft_Magnitude(re, im, mag, 256);
+  int peak = 0;
+  for (int k = 1; k < 128; k++) if (mag[k] > mag[peak]) peak = k;
+  CHECK(peak == 10);
+  CHECK(fabsf(mag[10] - 128.0f) < 0.5f);
+  CHECK(mag[3] < 0.01f && mag[50] < 0.01f);
+  for (int i = 0; i < 8; i++) { re[i] = 1.0f; im[i] = 0; }
+  CHECK(Fft_Run(re, im, 8) == 0 && fabsf(re[0] - 8.0f) < 1e-4f && fabsf(re[1]) < 1e-4f);
+  CHECK(Fft_Run(re, im, 12) == -1 && Fft_Run(re, im, 512) == -1);
+}
+
+/* stereo sine: amplitude a on the left, b on the right */
+static void sine_block(int16_t *s, unsigned frames, float hz, float rate, float a, float b)
+{
+  for (unsigned i = 0; i < frames; i++)
+  {
+    float v = sinf(6.2831853f * hz * (float)i / rate);
+    s[2 * i] = (int16_t)(a * v);
+    s[2 * i + 1] = (int16_t)(b * v);
+  }
+}
+
+static int loudest_band(const SpectrumLevels *l)
+{
+  int best = 0;
+  for (int i = 1; i < SPECTRUM_BANDS; i++) if (l->band[i] > l->band[best]) best = i;
+  return best;
+}
+
+static void test_spectrum(void)
+{
+  static int16_t s[2 * 2048];
+  SpectrumLevels l;
+
+  memset(s, 0, sizeof s);
+  Spectrum_Compute(s, 2048, 44100, &l);
+  int all_zero = l.left == 0 && l.right == 0;
+  for (int i = 0; i < SPECTRUM_BANDS; i++) all_zero = all_zero && l.band[i] == 0;
+  CHECK(all_zero);                                       /* silence */
+
+  /* a full-scale 1 kHz sine: loud, in a middle band, near 255 */
+  sine_block(s, 2048, 1000.0f, 44100.0f, 32767.0f, 32767.0f);
+  Spectrum_Compute(s, 2048, 44100, &l);
+  int mid = loudest_band(&l);
+  CHECK(mid > 4 && mid < 12);
+  CHECK(l.band[mid] > 240);
+  CHECK(l.left > 250 && l.right > 250);
+  CHECK(l.band[0] < l.band[mid] / 2 && l.band[15] < l.band[mid] / 2);
+
+  /* higher frequency -> higher band; same at 22 kHz (no frame averaging) */
+  sine_block(s, 2048, 5000.0f, 44100.0f, 16000.0f, 16000.0f);
+  Spectrum_Compute(s, 2048, 44100, &l);
+  CHECK(loudest_band(&l) > mid);
+  sine_block(s, 2048, 100.0f, 22050.0f, 16000.0f, 16000.0f);
+  Spectrum_Compute(s, 2048, 22050, &l);
+  CHECK(loudest_band(&l) < 3);
+
+  /* left only; quieter gives a lower level */
+  sine_block(s, 2048, 440.0f, 44100.0f, 3000.0f, 0.0f);
+  Spectrum_Compute(s, 2048, 44100, &l);
+  CHECK(l.right == 0 && l.left > 100 && l.left < 230);
+
+  /* too few frames for the bands: channel levels only */
+  Spectrum_Compute(s, 100, 44100, &l);
+  CHECK(l.band[3] == 0 && l.left > 100);
+
+  /* hex round trip */
+  char hex[SPECTRUM_HEX_LEN + 1];
+  SpectrumLevels back;
+  for (int i = 0; i < SPECTRUM_BANDS; i++) l.band[i] = (uint8_t)(i * 17);
+  l.left = 0xAB;
+  l.right = 0x07;
+  CHECK(Spectrum_Encode(&l, hex, sizeof hex) == SPECTRUM_HEX_LEN);
+  CHECK(strncmp(hex, "001122", 6) == 0 && strcmp(hex + 32, "AB07") == 0);
+  CHECK(Spectrum_Decode(hex, &back) == 0 && memcmp(&back, &l, sizeof l) == 0);
+  CHECK(Spectrum_Encode(&l, hex, SPECTRUM_HEX_LEN) == 0);
+  CHECK(Spectrum_Decode("00FF", &back) == -1);
+  hex[5] = 'x';
+  CHECK(Spectrum_Decode(hex, &back) == -1);
 }
 
 static void test_link_lines(void)
@@ -368,23 +467,6 @@ static void test_matrix(void)
   CHECK(c.r == 77 && c.g == 77 && c.b == 77);
 }
 
-/* ---------- BeaconGalaxy: FFT ---------- */
-static void test_fft(void)
-{
-  static float re[256], im[256], mag[128];
-  for (int i = 0; i < 256; i++) { re[i] = cosf(6.2831853f * 10.0f * (float)i / 256.0f); im[i] = 0; }
-  CHECK(Fft_Run(re, im, 256) == 0);
-  Fft_Magnitude(re, im, mag, 256);
-  int peak = 0;
-  for (int k = 1; k < 128; k++) if (mag[k] > mag[peak]) peak = k;
-  CHECK(peak == 10);
-  CHECK(fabsf(mag[10] - 128.0f) < 0.5f);
-  CHECK(mag[3] < 0.01f && mag[50] < 0.01f);
-  for (int i = 0; i < 8; i++) { re[i] = 1.0f; im[i] = 0; }
-  CHECK(Fft_Run(re, im, 8) == 0 && fabsf(re[0] - 8.0f) < 1e-4f && fabsf(re[1]) < 1e-4f);
-  CHECK(Fft_Run(re, im, 12) == -1 && Fft_Run(re, im, 512) == -1);
-}
-
 #endif /* TEST_BEACON */
 
 #ifdef TEST_BOOT
@@ -429,6 +511,8 @@ int main(void)
   test_link_parse();
   test_link_format();
   test_link_lines();
+  test_fft();
+  test_spectrum();
 #ifdef TEST_AUDIO
   test_wav();
   test_wav_convert();
@@ -438,7 +522,6 @@ int main(void)
   test_gif_names();
   test_bmp();
   test_matrix();
-  test_fft();
 #endif
 #ifdef TEST_BOOT
   test_image();

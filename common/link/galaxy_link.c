@@ -42,6 +42,7 @@ static const GxDef defs[] = {
   { GX_EV_STOPPED,   "GALAXYAUDIO", "STOPPED",   ARGS_SUB, 0, 0 },
   { GX_EV_NOUSB,     "GALAXYAUDIO", "NOUSB",     ARGS_SUB, 0, 0 },
   { GX_EV_ERR,       "GALAXYAUDIO", "ERR",       ARGS_SUB, 0, 0 },
+  { GX_EV_LEVELS,    "GALAXYAUDIO", "LEVELS",    ARGS_SUB, 0, GX_SECONDS_MAX },
 };
 
 #define DEF_COUNT (sizeof defs / sizeof defs[0])
@@ -125,6 +126,13 @@ GxParseResult Gx_Parse(char *line, GxMsg *out)
         {
           if (argc < 3 || P_Number(argv[2], d->min, d->max, &out->a) != 0) return GX_PARSE_BAD_ARGS;
         }
+        else if (d->id == GX_EV_LEVELS)
+        {
+          if (argc < 5 || P_Number(argv[2], d->min, d->max, &out->a) != 0
+              || P_Number(argv[3], d->min, d->max, &out->b) != 0
+              || strlen(argv[4]) > GX_NAME_MAX) return GX_PARSE_BAD_ARGS;
+          P_CopyText(out->text, argv[4]);
+        }
         else if (d->id == GX_EV_ERR && argc >= 3)
         {
           P_CopyText(out->text, argv[2]);
@@ -177,6 +185,14 @@ size_t Gx_Format(const GxMsg *m, char *buf, size_t size)
       break;
     case ARGS_SUB:
       if (d->id == GX_EV_PLAYING) n = snprintf(buf, size, "%s %s %ld", d->verb, d->sub, m->a);
+      else if (d->id == GX_EV_LEVELS)
+      {
+        n = snprintf(buf, size, "%s %s %ld %ld ", d->verb, d->sub, m->a, m->b);
+        if (n < 0 || (size_t)n >= size) return 0;
+        pos = P_AppendWord(buf, (size_t)n, size - 1u, m->text);
+        buf[pos] = '\0';
+        n = (int)pos;
+      }
       else if (d->id == GX_EV_ERR)
       {
         n = snprintf(buf, size, "%s %s ", d->verb, d->sub);
